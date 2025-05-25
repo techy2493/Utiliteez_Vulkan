@@ -9,7 +9,6 @@ namespace Utiliteez.Game;
 public class Client
 {
     private Scene _currentScene;
-    private ResourceRepository<Model> _modelRepository;
 
     
     
@@ -18,10 +17,4 @@ public class Client
         _currentScene = new Scene(10, 10, sceneName, "", "");
         _currentScene.World.AddEntity(new PowerPole(), new Vector2(0, 0));
     }
-    
-    public Model GetModel(string path)
-    {
-        return _modelRepository.Request(path);
-    }
-    
 }

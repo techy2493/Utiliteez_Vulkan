@@ -11,9 +11,10 @@ public interface IDeviceManager
     PhysicalDevice PhysicalDevice { get; }
     Device LogicalDevice { get; }
     QueueFamilyIndices Indices { get; }
-    ref readonly CommandBuffer CommandBuffer { get; }
+    ref readonly CommandBuffer[] CommandBuffers { get; }
     ref readonly Queue GraphicsQueue { get; }
     ref readonly Queue PresentQueue { get; }
     CommandBuffer BeginSingleTimeCommands();
     void EndSingleTimeCommands(CommandBuffer cmd);
+    void CreateCommandBuffers(int count);
 }

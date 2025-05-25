@@ -34,6 +34,11 @@ public class RenderModule: Module
             .SingleInstance();
         
         builder
+            .RegisterType<AssetManager>()
+            .As<IAssetManager>()
+            .SingleInstance();
+        
+        builder
             .RegisterType<ResourceManager>()
             .As<IResourceManager>()
             .SingleInstance();

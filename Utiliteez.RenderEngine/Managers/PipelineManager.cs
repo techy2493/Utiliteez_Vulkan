@@ -68,6 +68,7 @@ public unsafe record PipelineManager(
         AllocateDescriptorSet();       // just allocates once
         WriteDescriptorsForUBO();      // binding 0 → your uniform buffer
         WriteDescriptorsForMaterialBuffer();
+        WriteDescriptorsForInstanceDataBuffer();
         WriteDescriptorForAtlas();// binding 1 → your initial material buffer
         ResourceManager.SetAtlasDescriptorSet(_descriptorSet);
         CreateGraphicsPipeline();
@@ -82,6 +83,7 @@ public unsafe record PipelineManager(
         StageFlags = ShaderStageFlags.VertexBit,
         PImmutableSamplers = null
     };
+    
 
     // binding 1 = our runtime StorageBuffer:
     DescriptorSetLayoutBinding matBufferBinding = new()
@@ -99,9 +101,20 @@ public unsafe record PipelineManager(
         StageFlags      = ShaderStageFlags.FragmentBit,
         PImmutableSamplers = null
     };
+    
+    
+    
+    DescriptorSetLayoutBinding InstanceDataBinding = new()
+    {
+        Binding = 3,
+        DescriptorType = DescriptorType.StorageBuffer,
+        DescriptorCount = 1,
+        StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+        PImmutableSamplers = null
+    };
 
         
-    var bindings = new[] { uboLayoutBinding, matBufferBinding, samplerBinding };
+    var bindings = new[] { uboLayoutBinding, matBufferBinding, samplerBinding, InstanceDataBinding };
     fixed (DescriptorSetLayoutBinding* bindingsPtr = bindings)
     {
         DescriptorSetLayoutCreateInfo layoutInfo = new()
@@ -120,13 +133,7 @@ public unsafe record PipelineManager(
 
     internal void CreateDescriptorPool()
     {
-        DescriptorPoolSize poolSize = new DescriptorPoolSize
-        {
-            Type = DescriptorType.UniformBuffer,
-            DescriptorCount = 1
-        };
-        
-        DescriptorPoolSize[] poolSizes = new DescriptorPoolSize[]
+        DescriptorPoolSize[] poolSizes = new []
             {
                 new DescriptorPoolSize
                 {
@@ -136,11 +143,10 @@ public unsafe record PipelineManager(
                 new DescriptorPoolSize
                 {
                     Type = DescriptorType.StorageBuffer,
-                    DescriptorCount = 1
+                    DescriptorCount = 2
                 },
-                new DescriptorPoolSize
-                {
-                    Type = DescriptorType.CombinedImageSampler,
+                new DescriptorPoolSize {
+                    Type            = DescriptorType.CombinedImageSampler,
                     DescriptorCount = 1
                 },
             };
@@ -205,7 +211,7 @@ public unsafe record PipelineManager(
     public void WriteDescriptorsForUBO()
     {
         // Describe the uniform buffer (matrices)
-        var uboSize = (ulong) Marshal.SizeOf<UniformBufferObject>();
+        var uboSize = (ulong) Marshal.SizeOf<CameraUniformBufferObject>();
         var bufferInfo = new DescriptorBufferInfo
         {
             Buffer = ResourceManager.UniformBuffer.Buffer,
@@ -269,6 +275,36 @@ public unsafe record PipelineManager(
         );
     }
     
+    
+    public void WriteDescriptorsForInstanceDataBuffer()
+    {
+        var instanceInfo = new DescriptorBufferInfo
+        {
+            Buffer = ResourceManager.InstanceDataBuffer.Buffer,
+            Offset = 0,
+            Range  = ResourceManager.InstanceDataBufferSize
+        };
+
+        var write = new WriteDescriptorSet
+        {
+            SType           = StructureType.WriteDescriptorSet,
+            DstSet          = _descriptorSet,
+            DstBinding      = 3,
+            DstArrayElement = 0,
+            DescriptorType  = DescriptorType.StorageBuffer,
+            DescriptorCount = 1,
+            PBufferInfo     = &instanceInfo
+        };
+
+        Vk.UpdateDescriptorSets(
+            DeviceManager.LogicalDevice,
+            1,
+            &write,
+            0,
+            null
+        );
+    }
+    
     public void WriteDescriptorForAtlas()
     {
         var imageInfo = new DescriptorImageInfo {
@@ -301,7 +337,7 @@ internal unsafe void CreateGraphicsPipeline()
                 InputRate = VertexInputRate.Vertex
             };
 
-            var attributeDescriptions = stackalloc VertexInputAttributeDescription[4];
+            var attributeDescriptions = stackalloc VertexInputAttributeDescription[3];
             attributeDescriptions[0] = new VertexInputAttributeDescription
             {
                 Binding = 0,
@@ -313,20 +349,13 @@ internal unsafe void CreateGraphicsPipeline()
             {
                 Binding = 0,
                 Location = 1,
-                Format = Format.R32Uint,
-                Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.MaterialIndex))
+                Format = Format.R32G32B32Sfloat,
+                Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Normal))
             };
             attributeDescriptions[2] = new VertexInputAttributeDescription
             {
                 Binding = 0,
                 Location = 2,
-                Format = Format.R32G32B32Sfloat,
-                Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Normal))
-            };
-            attributeDescriptions[3] = new VertexInputAttributeDescription
-            {
-                Binding = 0,
-                Location = 3,
                 Format = Format.R32G32Sfloat,
                 Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Uv))
             };
@@ -337,7 +366,7 @@ internal unsafe void CreateGraphicsPipeline()
                 SType = StructureType.PipelineVertexInputStateCreateInfo,
                 VertexBindingDescriptionCount = 1,
                 PVertexBindingDescriptions = &bindingDescription,
-                VertexAttributeDescriptionCount = 4,
+                VertexAttributeDescriptionCount = 3,
                 PVertexAttributeDescriptions = attributeDescriptions
             };
 
@@ -444,13 +473,14 @@ internal unsafe void CreateGraphicsPipeline()
                 ColorAttachmentCount = 1,
                 PColorAttachmentFormats = &format,
                 DepthAttachmentFormat = Format.D32Sfloat,
-                StencilAttachmentFormat = Format.D32Sfloat,
+                StencilAttachmentFormat = Format.Undefined,
             };
             
             var depthStencil = new PipelineDepthStencilStateCreateInfo {
                 SType            = StructureType.PipelineDepthStencilStateCreateInfo,
                 DepthTestEnable  = true,
                 DepthWriteEnable = true,
+                StencilTestEnable = false,
                 DepthCompareOp   = CompareOp.LessOrEqual,
             };
             

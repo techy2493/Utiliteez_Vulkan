@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Utiliteez.RenderEngine.Interfaces;
@@ -14,17 +15,31 @@ public unsafe record CommandManager (
     IPipelineManager PipelineManager
     ) : ICommandManager
 {
+    private int _frameIndex = 0;
+    private bool _isInitialized = false;
+    public void Initialize()
+    {
+        if (_isInitialized)
+            return;
+        DeviceManager.CreateCommandBuffers(SwapChainManager.ImageCount);
+        _isInitialized = true;
+    }
+    
     public void RenderFrame(
         VulkanBuffer vertexBuffer,
         VulkanBuffer indexBuffer,
-        uint indexCount)
+        VulkanBuffer IndirectCommandBuffer,
+        VulkanBuffer InstanceDataBuffer,
+        uint drawCount)
     {
+        _frameIndex = (_frameIndex + 1) % SwapChainManager.ImageCount;
+        
         // Wait for the in-flight fence to ensure the previous frame is complete
-        Vk.WaitForFences(DeviceManager.LogicalDevice, 1, in SwapChainManager.InFlightFences, true, ulong.MaxValue);
-        Vk.ResetFences(DeviceManager.LogicalDevice, 1, in SwapChainManager.InFlightFences);
+        Vk.WaitForFences(DeviceManager.LogicalDevice, 1, in SwapChainManager.InFlightFences[_frameIndex], true, ulong.MaxValue);
+        Vk.ResetFences(DeviceManager.LogicalDevice, 1, in SwapChainManager.InFlightFences[_frameIndex]);
         
         Vk.ResetCommandBuffer(
-            DeviceManager.CommandBuffer,
+            DeviceManager.CommandBuffers[_frameIndex],
             CommandBufferResetFlags.None
         );
         
@@ -32,7 +47,7 @@ public unsafe record CommandManager (
 
         // Acquire the next image from the swapchain
         uint imageIndex;
-        var result = SwapChainManager.KhrSwapChain.AcquireNextImage(DeviceManager.LogicalDevice, SwapChainManager.SwapChainKhr, ulong.MaxValue, SwapChainManager.ImageAvailableSemaphore, default,
+        var result = SwapChainManager.KhrSwapChain.AcquireNextImage(DeviceManager.LogicalDevice, SwapChainManager.SwapChainKhr, ulong.MaxValue, SwapChainManager.ImageAvailableSemaphores[_frameIndex], default,
             &imageIndex);
         if (result != Result.Success && result != Result.SuboptimalKhr)
         {
@@ -42,7 +57,7 @@ public unsafe record CommandManager (
 
         RenderingAttachmentInfo renderAttachmentInfo = new()
         {
-            SType = StructureType.RenderingAttachmentInfoKhr,
+            SType = StructureType.RenderingAttachmentInfo,
             ImageView = SwapChainManager.SwapChainImageViews[imageIndex], // Was misnamed? SwapChainViews
             ImageLayout = ImageLayout.ColorAttachmentOptimal,
             LoadOp = AttachmentLoadOp.Clear,
@@ -63,9 +78,9 @@ public unsafe record CommandManager (
             ClearValue     = new ClearValue { DepthStencil = new ClearDepthStencilValue { Depth = 1.0f, Stencil = 0 } }
         };
         
-        RenderingInfoKHR renderInfo = new()
+        RenderingInfo renderInfo = new()
         {
-            SType = StructureType.RenderingInfoKhr,
+            SType = StructureType.RenderingInfo,
             RenderArea = new Rect2D
             {
                 Offset = new Offset2D { X = 0, Y = 0 },
@@ -77,10 +92,8 @@ public unsafe record CommandManager (
             PDepthAttachment = &depthAttach,
         };
         
-        var beginRenderingKHR = VulkanDynamicRendering.LoadCmdBeginRenderingKHR(Vk, DeviceManager.LogicalDevice);
-        var endRenderingKHR = VulkanDynamicRendering.LoadCmdEndRenderingKHR(Vk, DeviceManager.LogicalDevice);
         // Record dynamic rendering commands
-        Vk.BeginCommandBuffer(DeviceManager.CommandBuffer,
+        Vk.BeginCommandBuffer(DeviceManager.CommandBuffers[_frameIndex],
             new CommandBufferBeginInfo { SType = StructureType.CommandBufferBeginInfo });
 
         ImageMemoryBarrier memoryBarrierBegin = new()
@@ -100,30 +113,26 @@ public unsafe record CommandManager (
             }
         };
 
-        Vk.CmdPipelineBarrier(DeviceManager.CommandBuffer, PipelineStageFlags.TopOfPipeBit,
+        Vk.CmdPipelineBarrier(DeviceManager.CommandBuffers[_frameIndex], PipelineStageFlags.TopOfPipeBit,
             PipelineStageFlags.ColorAttachmentOutputBit, 0, 0, null, 0, null, 1, &memoryBarrierBegin);
 
         
 // Use the function
-        beginRenderingKHR(DeviceManager.CommandBuffer, &renderInfo);
-        Vk!.CmdBindPipeline(DeviceManager.CommandBuffer, PipelineBindPoint.Graphics, PipelineManager.GraphicsPipeline);
+        Vk.CmdBeginRendering(DeviceManager.CommandBuffers[_frameIndex], &renderInfo);
+        Vk!.CmdBindPipeline(DeviceManager.CommandBuffers[_frameIndex], PipelineBindPoint.Graphics, PipelineManager.GraphicsPipeline);
 
         fixed (DescriptorSet* descriptorSet = &PipelineManager.DescriptorSet)
         {
-            Vk.CmdBindDescriptorSets(DeviceManager.CommandBuffer, PipelineBindPoint.Graphics, PipelineManager.GraphicsPipelineLayout, 0, 1,
+            Vk.CmdBindDescriptorSets(DeviceManager.CommandBuffers[_frameIndex], PipelineBindPoint.Graphics, PipelineManager.GraphicsPipelineLayout, 0, 1,
                 descriptorSet, 0, null);
     
         }
-        
-        // vk.CmdDraw(commandBuffer, 3, 1, 0, 0);
-        // vk.CmdDraw(commandBuffer, 3, 2, 3, 1);
-        
         
         fixed (Buffer*    pBuffers = &vertexBuffer.Buffer)
         fixed (ulong*     pOffsets = stackalloc ulong[1] { 0 })
         {
             Vk.CmdBindVertexBuffers(
-                DeviceManager.CommandBuffer,
+                DeviceManager.CommandBuffers[_frameIndex],
                 0,               // first binding
                 1,               // binding count
                 pBuffers,        // pointer to your 1-element array of Buffer
@@ -131,11 +140,11 @@ public unsafe record CommandManager (
             );
         }
         
-        Vk.CmdBindIndexBuffer(DeviceManager.CommandBuffer, indexBuffer.Buffer, 0, IndexType.Uint32);
+        Vk.CmdBindIndexBuffer(DeviceManager.CommandBuffers[_frameIndex], indexBuffer.Buffer, 0, IndexType.Uint32);
         
-        Vk.CmdDrawIndexed(DeviceManager.CommandBuffer, indexCount, 1, 0, 0, 0);
+        Vk.CmdDrawIndexedIndirect(DeviceManager.CommandBuffers[_frameIndex], IndirectCommandBuffer.Buffer, 0, drawCount, (uint)Marshal.SizeOf<DrawIndexedIndirectCommand>());
         
-        endRenderingKHR(DeviceManager.CommandBuffer);
+        Vk.CmdEndRendering(DeviceManager.CommandBuffers[_frameIndex]);
 
         ImageMemoryBarrier memoryBarrierEnd = new()
         {
@@ -154,16 +163,16 @@ public unsafe record CommandManager (
             }
         };
 
-        Vk.CmdPipelineBarrier(DeviceManager.CommandBuffer, PipelineStageFlags.ColorAttachmentOutputBit,
+        Vk.CmdPipelineBarrier(DeviceManager.CommandBuffers[_frameIndex], PipelineStageFlags.ColorAttachmentOutputBit,
             PipelineStageFlags.BottomOfPipeBit, 0, 0, null, 0, null, 1, &memoryBarrierEnd);
 
-        Vk.EndCommandBuffer(DeviceManager.CommandBuffer);
+        Vk.EndCommandBuffer(DeviceManager.CommandBuffers[_frameIndex]);
 
         var stageMask = PipelineStageFlags.ColorAttachmentOutputBit;
 
-        fixed(Semaphore* renderFinishedSemaphore = &SwapChainManager.RenderFinishedSemaphores)
-        fixed(Semaphore* imageAvailableSemaphore = &SwapChainManager.ImageAvailableSemaphore)
-        fixed(CommandBuffer* commandBuffer = &DeviceManager.CommandBuffer)
+        fixed(Semaphore* renderFinishedSemaphore = &SwapChainManager.RenderFinishedSemaphores[_frameIndex])
+        fixed(Semaphore* imageAvailableSemaphore = &SwapChainManager.ImageAvailableSemaphores[_frameIndex])
+        fixed(CommandBuffer* commandBuffer = &DeviceManager.CommandBuffers[_frameIndex])
         fixed(SwapchainKHR* SwapChainKhr = &SwapChainManager.SwapChainKhr)
         {
             // Submit the command buffer
@@ -179,7 +188,7 @@ public unsafe record CommandManager (
                 PSignalSemaphores = renderFinishedSemaphore,
             };
 
-            Vk.QueueSubmit(DeviceManager.GraphicsQueue, 1, in submitInfo, SwapChainManager.InFlightFences);
+            Vk.QueueSubmit(DeviceManager.GraphicsQueue, 1, in submitInfo, SwapChainManager.InFlightFences[_frameIndex]);
 
             // Present the swapchain image
             PresentInfoKHR presentInfo = new()

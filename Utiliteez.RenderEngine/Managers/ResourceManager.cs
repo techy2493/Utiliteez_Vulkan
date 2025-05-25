@@ -13,13 +13,16 @@ namespace Utiliteez.RenderEngine;
 public unsafe record ResourceManager(
     Vk Vk,
     IDeviceManager DeviceManager,
-    ISwapChainManager SwapChainManager
+    ISwapChainManager SwapChainManager,
+    IAssetManager AssetManager
 ) : IResourceManager
 {
     public VulkanBuffer UniformBuffer { get; private set; }
     public VulkanBuffer MaterialBuffer { get; private set; }
-
     public ulong MaterialBufferSize { get; private set; }
+    public VulkanBuffer InstanceDataBuffer { get; private set; }
+    public ulong InstanceDataBufferSize { get; private set; }
+    const int MaxInstances = 2; // max instances per model
 
     // New Vulkan handles for the atlas
     private Image _atlasImage;
@@ -35,17 +38,19 @@ public unsafe record ResourceManager(
 
     internal void CreateUniformBuffer()
     {
-        ulong bufferSize = (ulong)sizeof(UniformBufferObject);
+        ulong bufferSize = (ulong)sizeof(CameraUniformBufferObject);
 
         UniformBuffer = VulkanBuffer.CreateBuffer(Vk, DeviceManager.LogicalDevice, DeviceManager.PhysicalDevice,
             bufferSize, BufferUsageFlags.UniformBufferBit,
             MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
     }
 
-    public void CreateMaterialBuffer(ShaderMaterial[] material)
+    public void CreateMaterialBuffer()
     {
+        var materials = AssetManager.Materials.Select(x => (ShaderMaterial)x).ToArray();
+        
         ulong entrySize = (ulong)Marshal.SizeOf<ShaderMaterial>();
-        MaterialBufferSize = entrySize * (ulong)Math.Max(material.Length, 1);
+        MaterialBufferSize = entrySize * (ulong)Math.Max(materials.Length, 1);
 
         MaterialBuffer = VulkanBuffer.CreateBuffer(Vk, DeviceManager.LogicalDevice, DeviceManager.PhysicalDevice,
             MaterialBufferSize, BufferUsageFlags.StorageBufferBit,
@@ -62,16 +67,16 @@ public unsafe record ResourceManager(
             &gpuPtr
         );
 
-        if (material.Length > 0)
+        if (materials.Length > 0)
         {
             // pin the managed array so GC won’t move it
-            fixed (ShaderMaterial* srcPtr = &material[0])
+            fixed (ShaderMaterial* srcPtr = &materials[0])
             {
                 Buffer.MemoryCopy(
                     srcPtr,
                     gpuPtr,
                     MaterialBufferSize, // destination capacity
-                    (ulong)material.Length * entrySize // bytes to copy
+                    (ulong)materials.Length * entrySize // bytes to copy
                 );
             }
         }
@@ -85,19 +90,78 @@ public unsafe record ResourceManager(
         Vk.UnmapMemory(DeviceManager.LogicalDevice, MaterialBuffer.Memory);
     }
 
+    public void CreateInstanceDataBuffer()
+    {
+        InstanceDataBufferSize = (ulong)(MaxInstances * Marshal.SizeOf<InstanceData>());
+        InstanceDataBuffer = VulkanBuffer.CreateBuffer(Vk, DeviceManager.LogicalDevice, DeviceManager.PhysicalDevice,
+            InstanceDataBufferSize,
+            BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
+            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+
+        InstanceData[] instanceData = [];
+
+// 4) Map → copy → unmap
+        void* mappedInst;
+        Vk.MapMemory(
+            DeviceManager.LogicalDevice,
+            InstanceDataBuffer.Memory,
+            0,
+            InstanceDataBufferSize,
+            0,
+            &mappedInst
+        );
+
+        IntPtr baseInstPtr = (IntPtr)mappedInst;
+        int instStructSize = Marshal.SizeOf<InstanceData>();
+        for (int i = 0; i < instanceData.Length; i++)
+        {
+            Marshal.StructureToPtr(
+                instanceData[i],
+                baseInstPtr + i * instStructSize,
+                false
+            );
+        }
+
+        Vk.UnmapMemory(DeviceManager.LogicalDevice, InstanceDataBuffer.Memory);
+    }
+
+    public void UpdateInstanceDataBuffer(InstanceData[] instanceData)
+    {
+        void* mappedInst;
+        Vk.MapMemory(
+            DeviceManager.LogicalDevice,
+            InstanceDataBuffer.Memory,
+            0,
+            InstanceDataBufferSize,
+            0,
+            &mappedInst
+        );
+
+        IntPtr baseInstPtr = (IntPtr)mappedInst;
+        int instStructSize = Marshal.SizeOf<InstanceData>();
+        for (int i = 0; i < instanceData.Length; i++)
+        {
+            Marshal.StructureToPtr(
+                instanceData[i],
+                baseInstPtr + i * instStructSize,
+                false
+            );
+        }
+
+        Vk.UnmapMemory(DeviceManager.LogicalDevice, InstanceDataBuffer.Memory);
+    }
+
     public void Initialize()
     {
         CreateUniformBuffer();
-        CreateMaterialBuffer([]);
+        CreateMaterialBuffer();
+        CreateInstanceDataBuffer();
         CreateTextureAtlas();
     }
 
     public void UpdateUniformBuffer()
     {
-        UniformBufferObject ubo = new UniformBufferObject
-        {
-            model = Matrix4x4.Identity,
-        };
+        CameraUniformBufferObject ubo = new CameraUniformBufferObject();
 
         // 1) Set up an orthographic projection
         float viewWidth = 3.0f; // world-space width you want visible
@@ -138,7 +202,7 @@ public unsafe record ResourceManager(
         ubo.proj = proj;
 
         void* data;
-        Vk.MapMemory(DeviceManager.LogicalDevice, UniformBuffer.Memory, 0, (ulong)sizeof(UniformBufferObject), 0,
+        Vk.MapMemory(DeviceManager.LogicalDevice, UniformBuffer.Memory, 0, (ulong)sizeof(CameraUniformBufferObject), 0,
             &data);
         Marshal.StructureToPtr(ubo, (IntPtr)data, false);
         Vk.UnmapMemory(DeviceManager.LogicalDevice, UniformBuffer.Memory);
@@ -242,6 +306,9 @@ public unsafe record ResourceManager(
 
     public unsafe void UpdateTextureAtlas()
     {
+        // 0) Update Atlas
+        TextureAtlas.Generate(AssetManager.Materials.ToArray());
+        
         // 1) Pull the CPU‐side atlas pixels
         var cpuAtlas = TextureAtlas.Atlas;
         int atlasW = cpuAtlas.Width;

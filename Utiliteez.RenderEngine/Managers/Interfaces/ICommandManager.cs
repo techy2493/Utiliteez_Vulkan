@@ -8,7 +8,9 @@ public interface ICommandManager
     unsafe void RenderFrame(
         VulkanBuffer vertexBuffer,
         VulkanBuffer indexBuffer,
-        uint indexCount);
+        VulkanBuffer IndirectCommandBuffer,
+        VulkanBuffer InstanceDataBuffer,
+        uint drawCount);
 
     Vk Vk { get; init; }
     IDeviceManager DeviceManager { get; init; }
@@ -20,4 +22,5 @@ public interface ICommandManager
     int GetHashCode();
     void Deconstruct(out Vk Vk, out IDeviceManager DeviceManager, out ISwapChainManager SwapChainManager, out IResourceManager ResourceManager, out IPipelineManager PipelineManager);
     string ToString();
+    void Initialize();
 }

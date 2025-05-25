@@ -12,9 +12,9 @@ namespace Utiliteez.Render
 {
     
     
-    public class ModelLoader: ILoader<Model>
+    public class ModelLoader
     {
-        public Model Load(string filePath, uint matIndexOffset)
+        public (Vertex[],uint[] Indices ,Material?) Load(string filePath)
         {
             using (var importer = new AssimpContext())
             {
@@ -25,23 +25,9 @@ namespace Utiliteez.Render
 
                 var vertices = new List<Vertex>();
                 var indices  = new List<uint>();
-                var materialMap = new Dictionary<Material, int>();
-                var mats        = new List<Material>();
 
                 foreach (var mesh in scene.Meshes)
                 {
-                    // 1) Build the key
-                    var mat = scene
-                        .Materials[mesh.MaterialIndex]
-                        .ToMaterialEntry();  // your IEquatable type
-
-                    // 2) Deduplicate via TryGetValue
-                    if (!materialMap.TryGetValue(mat, out var matIdx))
-                    {
-                        matIdx = mats.Count;
-                        materialMap[mat] = matIdx;
-                        mats.Add(mat);
-                    }
 
                     // 3) Remember where this mesh’s vertices start
                     int baseIndex = vertices.Count;
@@ -53,12 +39,10 @@ namespace Utiliteez.Render
                             ? mesh.TextureCoordinateChannels[0][i].ToVector2()
                             : Vector2.Zero;
                         
-                        //mats[matIdx].UpdateRect(uv);
                         vertices.Add(new Vertex {
                             Position      = mesh.Vertices[i].ToVector3(),
                             Normal        = mesh.Normals[i].ToVector3(),
-                            Uv            = uv, 
-                            MaterialIndex = (uint)matIdx + matIndexOffset
+                            Uv            = uv
                         });
                     }
 
@@ -69,14 +53,8 @@ namespace Utiliteez.Render
                 }
 
                 // 6) Return everything
-                return new Model {
-                    Vertices = vertices.ToArray(),
-                    Indices = indices .ToArray(),
-                    Materials = mats.ToArray()
-                }; 
+                return (vertices.ToArray(), indices.ToArray(), scene.Materials.Where(x => x.HasTextureDiffuse).FirstOrDefault()?.ToMaterialEntry());
             }
-            
         }
-
     }
 }

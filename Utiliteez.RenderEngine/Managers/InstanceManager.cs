@@ -25,7 +25,7 @@ public unsafe record InstanceManager(
     [
         KhrSwapchain.ExtensionName,
         KhrDynamicRendering.ExtensionName,
-        "VK_KHR_synchronization2"
+        "VK_KHR_synchronization2",
     ];
 
     public bool EnableValidationLayers
@@ -164,7 +164,7 @@ public unsafe record InstanceManager(
             ApplicationVersion = new Version32(1, 0, 0),
             PEngineName = (byte*)Marshal.StringToHGlobalAnsi("No Engine"),
             EngineVersion = new Version32(1, 0, 0),
-            ApiVersion = Vk.Version12
+            ApiVersion = Vk.Version13
         };
 
         InstanceCreateInfo createInfo = new()

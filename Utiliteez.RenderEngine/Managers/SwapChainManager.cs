@@ -15,9 +15,10 @@ public unsafe record SwapChainManager(
 {
     private SwapchainKHR _swapChainKhr;
     private KhrSwapchain _khrSwapChain;
-    private Semaphore _imageAvailableSemaphore;
-    private Semaphore _renderFinishedSemaphores;
-    private Fence _inFlightFences;
+    private Semaphore[] _imageAvailableSemaphore;
+    private Semaphore[] _renderFinishedSemaphores;
+    private Fence[] _inFlightFences;
+    public int ImageCount => SwapChainImages?.Length ?? 0;
 
     public ref readonly KhrSwapchain KhrSwapChain => ref _khrSwapChain;
     public ref readonly SwapchainKHR SwapChainKhr => ref _swapChainKhr;
@@ -30,9 +31,9 @@ public unsafe record SwapChainManager(
 
     public ImageView[]? SwapChainImageViews { get; private set; }
 
-    public ref readonly Semaphore ImageAvailableSemaphore => ref _imageAvailableSemaphore;
-    public ref readonly Semaphore RenderFinishedSemaphores => ref _renderFinishedSemaphores;
-    public ref readonly Fence InFlightFences => ref _inFlightFences;
+    public ref readonly Semaphore[] ImageAvailableSemaphores => ref _imageAvailableSemaphore;
+    public ref readonly Semaphore[] RenderFinishedSemaphores => ref _renderFinishedSemaphores;
+    public ref readonly Fence[] InFlightFences => ref _inFlightFences;
     private ImageView _depthImageView;
     public ref readonly ImageView DepthImageView => ref _depthImageView; 
 
@@ -308,30 +309,46 @@ public unsafe record SwapChainManager(
 
     internal void CreateSyncObjects()
     {
-        _imageAvailableSemaphore = ImageAvailableSemaphore;
-        _imageAvailableSemaphore = new Semaphore();
+        _imageAvailableSemaphore = ImageAvailableSemaphores;
+        _imageAvailableSemaphore = new Semaphore[ImageCount];
         _renderFinishedSemaphores = RenderFinishedSemaphores;
-        _renderFinishedSemaphores = new Semaphore();
+        _renderFinishedSemaphores = new Semaphore[ImageCount];
         _inFlightFences = InFlightFences;
-        _inFlightFences = new Fence();
+        _inFlightFences = new Fence[ImageCount];
 
+        
+        for (int i = 0; i < ImageCount; i++)
+        {
+            _imageAvailableSemaphore[i] = CreateSemaphore();
+            _renderFinishedSemaphores[i] = CreateSemaphore();
+            _inFlightFences[i] = CreateFence(signalled: true);
+        }
+    }
+
+    Fence CreateFence(bool signalled = true)
+    {
+        
+        FenceCreateInfo fenceInfo = new()
+        {
+            SType = StructureType.FenceCreateInfo,
+            Flags = signalled ? FenceCreateFlags.SignaledBit : FenceCreateFlags.None,
+        };
+        if (Vk!.CreateFence(DeviceManager.LogicalDevice, in fenceInfo, null, out var fence) == Result.Success)
+            return fence;
+        
+        throw new Exception("Error creating Fence!");        
+    }
+
+    Semaphore CreateSemaphore()
+    {
         SemaphoreCreateInfo semaphoreInfo = new()
         {
             SType = StructureType.SemaphoreCreateInfo,
         };
-
-        FenceCreateInfo fenceInfo = new()
-        {
-            SType = StructureType.FenceCreateInfo,
-            Flags = FenceCreateFlags.SignaledBit,
-        };
-        if (Vk!.CreateSemaphore(DeviceManager.LogicalDevice, in semaphoreInfo, null, out _imageAvailableSemaphore) !=
-            Result.Success ||
-            Vk!.CreateSemaphore(DeviceManager.LogicalDevice, in semaphoreInfo, null, out _renderFinishedSemaphores) !=
-            Result.Success ||
-            Vk!.CreateFence(DeviceManager.LogicalDevice, in fenceInfo, null, out _inFlightFences) != Result.Success)
-        {
-            throw new Exception("failed to create synchronization objects for a frame!");
-        }
+        if (Vk!.CreateSemaphore(DeviceManager.LogicalDevice, in semaphoreInfo, null, out var semaphore) ==
+            Result.Success)
+            return semaphore;
+        
+        throw new Exception("Error creating Semaphore!");
     }
 }

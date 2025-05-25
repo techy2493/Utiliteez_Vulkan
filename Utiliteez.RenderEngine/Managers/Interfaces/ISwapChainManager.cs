@@ -14,9 +14,9 @@ public interface ISwapChainManager
     Format SwapChainImageFormat { get; }
     Extent2D SwapChainExtent { get; }
     ImageView[]? SwapChainImageViews { get; }
-    ref readonly Semaphore ImageAvailableSemaphore { get; }
-    ref readonly Semaphore RenderFinishedSemaphores { get; }
-    ref readonly Fence InFlightFences { get; }
+    ref readonly Semaphore[] ImageAvailableSemaphores { get; }
+    ref readonly Semaphore[] RenderFinishedSemaphores { get; }
+    ref readonly Fence[] InFlightFences { get; }
     ref readonly ImageView DepthImageView { get; }
     IDeviceManager DeviceManager { get; init; }
     ISurfaceManager SurfaceManager { get; init; }
@@ -24,4 +24,5 @@ public interface ISwapChainManager
     IInstanceManager InstanceManager { get; init; }
     IWindowManager WindowManager { get; init; }
     void Initialize();
+    int ImageCount { get;}
 }

@@ -55,8 +55,8 @@
 <!--    </Target>-->
     <Target Name="CompileShaders" BeforeTargets="BeforeBuild">
         <Message Importance="high" Text="Compiling GLSL shaders…" />
-        <Exec Command="glslc -g --target-env=vulkan1.2 $(ProjectDir)shaders/src/shader.vert -o $(ProjectDir)shaders/vert.spv" />
-        <Exec Command="glslc -g --target-env=vulkan1.2 $(ProjectDir)shaders/src/shader.frag -o $(ProjectDir)shaders/frag.spv" />
+        <Exec Command="glslc -g --target-env=vulkan1.3 $(ProjectDir)shaders/src/shader.vert -o $(ProjectDir)shaders/vert.spv" />
+        <Exec Command="glslc -g --target-env=vulkan1.3 $(ProjectDir)shaders/src/shader.frag -o $(ProjectDir)shaders/frag.spv" />
     </Target>
     
 </Project>

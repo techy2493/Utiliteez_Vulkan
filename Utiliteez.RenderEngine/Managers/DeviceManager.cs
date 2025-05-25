@@ -24,10 +24,10 @@ public unsafe record DeviceManager(
 
     public ref readonly Queue PresentQueue => ref _presentQueue;
 
-    public ref readonly CommandBuffer CommandBuffer => ref _commandBuffer;
+    public ref readonly CommandBuffer[] CommandBuffers => ref _commandBuffers;
 
     private CommandPool commandPool;
-    private CommandBuffer _commandBuffer;
+    private CommandBuffer[] _commandBuffers;
     private Queue _graphicsQueue;
     private Queue _presentQueue;
 
@@ -39,7 +39,6 @@ public unsafe record DeviceManager(
         CreateLogicalDevice();
         PopulateQueues();
         CreateCommandPool();
-        CreateCommandBuffer();
     }
 
     public void PickPhysicalDevice()
@@ -87,18 +86,26 @@ public unsafe record DeviceManager(
             throw new Exception("Not Ready! Physical device not chosen.");
         }
         
-        PhysicalDeviceFeatures deviceFeatures = new() {};
+        PhysicalDeviceFeatures deviceFeatures = new()
+        {
+            MultiDrawIndirect   = true,
+        };
         PhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures = new()
         {
             SType = StructureType.PhysicalDeviceDynamicRenderingFeaturesKhr,
             DynamicRendering = true
+        };
+        var drawParams = new PhysicalDeviceShaderDrawParametersFeatures {
+            SType                 = StructureType.PhysicalDeviceShaderDrawParametersFeatures,
+            ShaderDrawParameters  = true,
+            PNext                 = &dynamicRenderingFeatures   // chain it to dynamicRendering
         };
         var (mem, queueCreateInfos) = CreateDeviceQueueCreateInfos();
 
         DeviceCreateInfo createInfo = new()
         {
             SType = StructureType.DeviceCreateInfo,
-            PNext = &dynamicRenderingFeatures,
+            PNext = &drawParams,
             PQueueCreateInfos = (DeviceQueueCreateInfo*)queueCreateInfos,
             PEnabledFeatures = &deviceFeatures,
             QueueCreateInfoCount = (uint)Indices.ToDistinctArray().Length,
@@ -275,19 +282,19 @@ public unsafe record DeviceManager(
         Vk.FreeCommandBuffers(LogicalDevice, commandPool, 1, &cmd);
     }
     
-    internal void CreateCommandBuffer()
+    public void CreateCommandBuffers(int count)
     {
+        _commandBuffers = new CommandBuffer[count];
         // Allocate a single command buffer
-        _commandBuffer = default; // Assuming a single CommandBuffer field
         CommandBufferAllocateInfo allocInfo = new()
         {
             SType = StructureType.CommandBufferAllocateInfo,
             CommandPool = commandPool,
             Level = CommandBufferLevel.Primary,
-            CommandBufferCount = 1, // Only one command buffer
+            CommandBufferCount = (uint) count, // Only one command buffer
         };
 
-        fixed (CommandBuffer* commandBufferPtr = &_commandBuffer)
+        fixed (CommandBuffer* commandBufferPtr = _commandBuffers)
         {
             if (Vk!.AllocateCommandBuffers(LogicalDevice, in allocInfo, commandBufferPtr) != Result.Success)
             {

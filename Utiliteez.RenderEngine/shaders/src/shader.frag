@@ -34,6 +34,8 @@ void main() {
 //     3) Compute atlas UV (undo V-flip, then offset+scale)
     
     vec2 atlasUV   = m.uvOffset + uv * m.atlasScale;
+    
+    
     vec2 texSize = vec2(textureSize(atlasSampler,0));
     //atlasUV += (0.8 / texSize) * m.atlasScale;
     vec2 atlasPixelSpace = atlasUV * vec2(texSize);

@@ -18,16 +18,16 @@ public abstract class Entity
         Id = entityId;
         _world = world;
         _client = client;
-        GetModel = GenerateModel;
+        // GetModel = GenerateModel;
     }
     
     public int Id { get; set; }
     public Func<(Model, Vector3)> GetModel;
     public Layers Layer;
     
-    // model, rotation
-    public virtual (Model, Vector3) GenerateModel()
-    {
-        return (_client.GetModel(_modelPath), new Vector3());
-    }
+    // // model, rotation
+    // public virtual (Model, Vector3) GenerateModel()
+    // {
+    //     return (_client.GetModel(_modelPath), new Vector3());
+    // }
 }
