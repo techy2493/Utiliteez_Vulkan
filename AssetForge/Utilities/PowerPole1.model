@@ -1,0 +1,31 @@
+# Made using Asset Forge (2.4.1)
+
+:materials
+
+[name:_defaultMat;color:RGBA(0.166, 0.038, 0.000, 1.000);scale:(1.0, 1.0);shader:Default;mapping:0;valueA:0;valueB:0;]
+[name:dark;color:RGBA(0.224, 0.235, 0.275, 1.000);scale:(1.0, 1.0);shader:Default;mapping:0;valueA:0.35;valueB:0;]
+[name:custom2;color:RGBA(0.993, 0.944, 0.944, 1.000);scale:(1.0, 1.0);texture:Wood/panels;shader:Default;mapping:0;valueA:0;valueB:0.15;]
+[name:custom3;color:RGBA(0.489, 0.448, 0.436, 1.000);scale:(1.0, 1.0);shader:Default;mapping:0;valueA:0.2;valueB:0.6;]
+
+:models
+
+[name:;collection:Primitives;type:cylinder;position:(0.0000, 0.0000, 0.0000);rotation:(0.0000, 0.0000, 0.0000);scale:(0.5750, 1.6500, 0.5800);group:;locked:False;hidden:False;materials:dark;]
+[name:;collection:Primitives;type:block_bevel;position:(-0.2940, 8.8000, -0.0059);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2520, 0.3500, 2.7349);group:Group_45;locked:False;hidden:False;materials:_defaultMat;]
+[name:;collection:Mechanical;type:ring_bevel;position:(-0.3100, 9.2900, 0.4100);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(-0.3100, 9.2400, 0.4100);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(-0.3100, 9.3400, 0.4100);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(-0.3000, 9.3400, -0.4200);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(-0.3000, 9.2400, -0.4200);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(-0.3000, 9.2900, -0.4200);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Primitives;type:cylinder;position:(-0.3100, 9.1500, 0.4100);rotation:(0.0000, 0.0000, 0.0000);scale:(0.0900, 0.2400, 0.0900);group:Group_45;locked:False;hidden:False;materials:dark;]
+[name:;collection:Primitives;type:cylinder;position:(-0.3000, 9.1500, -0.4200);rotation:(0.0000, 0.0000, 0.0000);scale:(0.0900, 0.2400, 0.0900);group:Group_45;locked:False;hidden:False;materials:dark;]
+[name:;collection:Mechanical;type:ring_bevel;position:(0.2700, 9.3400, 0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(0.2700, 9.2900, 0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(0.2700, 9.2400, 0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(0.2800, 9.2400, -0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(0.2800, 9.2900, -0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Mechanical;type:ring_bevel;position:(0.2800, 9.3400, -0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2000, 0.1200, 0.2000);group:Group_45;locked:False;hidden:False;materials:custom3;]
+[name:;collection:Primitives;type:cylinder;position:(0.2700, 9.1500, 0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.0900, 0.2400, 0.0900);group:Group_45;locked:False;hidden:False;materials:dark;]
+[name:;collection:Primitives;type:cylinder;position:(0.2800, 9.1500, -0.9400);rotation:(0.0000, 0.0000, 0.0000);scale:(0.0900, 0.2400, 0.0900);group:Group_45;locked:False;hidden:False;materials:dark;]
+[name:;collection:Primitives;type:block_bevel;position:(0.2860, 8.8000, -0.0059);rotation:(0.0000, 0.0000, 0.0000);scale:(0.2520, 0.3500, 2.7349);group:Group_45;locked:False;hidden:False;materials:_defaultMat;]
+[name:;collection:Primitives;type:cylinder;position:(0.0000, 0.0000, 0.0000);rotation:(0.0000, 0.0000, 0.0000);scale:(0.5000, 9.1700, 0.5000);group:Group_45;locked:False;hidden:False;materials:_defaultMat;]
