@@ -22,7 +22,7 @@ public unsafe record ResourceManager(
     public ulong MaterialBufferSize { get; private set; }
     public VulkanBuffer InstanceDataBuffer { get; private set; }
     public ulong InstanceDataBufferSize { get; private set; }
-    const int MaxInstances = 2; // max instances per model
+    const int MaxInstances = 1000; // max instances per model
 
     // New Vulkan handles for the atlas
     private Image _atlasImage;
@@ -164,7 +164,7 @@ public unsafe record ResourceManager(
         CameraUniformBufferObject ubo = new CameraUniformBufferObject();
 
         // 1) Set up an orthographic projection
-        float viewWidth = 3.0f; // world-space width you want visible
+        float viewWidth = 6.0f; // world-space width you want visible
         float viewHeight = viewWidth *
                            (SwapChainManager.SwapChainExtent.Height / (float)SwapChainManager.SwapChainExtent.Width);
         float nearZ = -50.0f;
@@ -180,7 +180,7 @@ public unsafe record ResourceManager(
         float yaw = MathF.PI * 5f / 4f;
 // elevation = arctan(1/√2) ≈ 35.264°
         float elevation = MathF.Atan(1f / MathF.Sqrt(2f));
-        float distance = 0.1f;
+        float distance = 2f;
 
 // build a unit-direction from spherical coords
         Vector3 dir = new Vector3(

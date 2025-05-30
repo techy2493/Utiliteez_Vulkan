@@ -62,16 +62,18 @@ public unsafe record RenderEngine(
         {
             new DrawOrder
             {
+                model = pole,
+                position = new Vector3(1,0,0),
+            },
+            new DrawOrder
+            {
                 model = ground,
                 position = new Vector3(0,0,0),
-            },new DrawOrder
-            {
-                model = pole,
-                position = new Vector3(2,0,0),
-            },new DrawOrder
+            },
+            new DrawOrder
             {
                 model = ground,
-                position = new Vector3(4,0,0),
+                position = new Vector3(3,0,0),
             },
         };
         
@@ -172,7 +174,7 @@ public unsafe record RenderEngine(
         #endregion
 
         CommandManager.Initialize();
-        
+        Console.WriteLine($"[DEBUG] DrawIndexedIndirectCommand size = {Marshal.SizeOf<DrawIndexedIndirectCommand>()} bytes");
         WindowManager.Window.Render += (delta) =>
         {
             CommandManager.RenderFrame(vertexBuffer, indexBuffer, indirectBuffer, ResourceManager.InstanceDataBuffer, (uint) drawCommands.Length);

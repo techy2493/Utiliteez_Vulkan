@@ -11,12 +11,11 @@ layout(set = 0, binding = 0) uniform Camera {
 struct InstanceData {
     mat4 model;
     uint materialIndex;
-// if you need padding to 16-byte multiples, add:
-//  uint   _pad0, _pad1, _pad2;
+    vec3 _pad0;
 };
 
 // ——— set 0, binding 0: SSBO of InstanceData[] ————————————
-layout(set = 0, binding = 3) readonly buffer InstanceBuffer {
+layout(std430, set = 0, binding = 3) readonly buffer InstanceBuffer {
     InstanceData instances[];
 };
 // ——— per-vertex inputs ——————————————————————————————
