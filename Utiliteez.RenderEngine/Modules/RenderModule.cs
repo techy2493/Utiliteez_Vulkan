@@ -10,7 +10,15 @@ public class RenderModule: Module
 {
     protected override void Load(ContainerBuilder builder)
     {
-        builder.RegisterInstance(new WindowManager()).As<IWindowManager>().SingleInstance();
+        builder.RegisterType<TimingManager>()
+            .As<ITimingManager>()
+            .SingleInstance();
+        
+        builder.RegisterType<InputManager>()
+            .As<IInputManager>()
+            .SingleInstance();
+        
+        builder.RegisterType<WindowManager>().As<IWindowManager>().SingleInstance();
         builder.RegisterInstance(Vk.GetApi()).As<Vk>().SingleInstance();
         
         builder

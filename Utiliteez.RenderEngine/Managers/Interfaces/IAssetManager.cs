@@ -13,4 +13,5 @@ public interface IAssetManager
     public List<Font> Fonts { get; }
     public List<Vertex> Vertices { get ;}
     public List<uint> Indices { get;  }
+    void Finalize();
 }

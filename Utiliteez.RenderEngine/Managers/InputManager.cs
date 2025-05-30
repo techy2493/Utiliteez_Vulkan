@@ -1,0 +1,110 @@
+using System.Runtime.InteropServices.JavaScript;
+
+namespace Utiliteez.RenderEngine;
+
+public class InputManager(ITimingManager TimingManager) : IInputManager
+{
+    public event Action<KeyEventArgs>? OnKeyPressed;
+    public event Action<KeyEventArgs>? OnKeyDown;
+    public event Action<KeyEventArgs>? OnKeyUp;
+    public event Action<MouseEventArgs>? OnMouseButtonPressed;
+    public event Action<MouseEventArgs>? OnMouseButtonDown;
+    public event Action<MouseEventArgs>? OnMouseButtonUp;
+    public event Action<MouseEventArgs>? OnMouseMoved;
+
+    private readonly long[] _keysDown        = new long[Enum.GetValues<Keycode>().Length];
+    private readonly long[] _keysUp          = new long[Enum.GetValues<Keycode>().Length];
+    private readonly long[] _mouseButtonsDown       = new long[Enum.GetValues<MouseButton>().Length];
+    private readonly long[] _mouseButtonsUp         = new long[Enum.GetValues<MouseButton>().Length];
+
+    // public read-only views
+    public IReadOnlyList<long> KeysDown         => _keysDown;
+    public IReadOnlyList<long> KeysUp           => _keysUp;
+    public IReadOnlyList<long> MouseButtonsDown => _mouseButtonsDown;
+    public IReadOnlyList<long> MouseButtonsUp   => _mouseButtonsUp;
+    
+    public void KeyDown(KeyEventArgs e)
+    {
+        var eventArgs = e with
+        {
+            TimeSinceLastPressed = TimingManager.Now - KeysUp[(int)e.Key]
+        };
+        _keysDown[(int)e.Key] = TimingManager.Now;
+        _keysUp[(int)e.Key] = long.MinValue;
+        OnKeyDown?.Invoke(eventArgs);
+    }
+    
+    public void KeyUp(KeyEventArgs e)
+    {
+        var eventArgs = e with
+        {
+            TimeHeld = TimingManager.Now - KeysDown[(int)e.Key]
+        };
+        _keysDown[(int)e.Key] = long.MinValue;
+        _keysUp[(int)e.Key] = TimingManager.Now;
+        OnKeyUp?.Invoke(eventArgs);
+        if (eventArgs.TimeHeld > 0)
+            OnKeyPressed?.Invoke(eventArgs);
+    }
+    public void MouseButtonDown(MouseEventArgs e)
+    {
+        var eventArgs = e with
+        {
+            TimeSinceLastPressed = TimingManager.Now - MouseButtonsUp[(int)e.Button]
+        };
+        _mouseButtonsUp[(int)e.Button] = long.MinValue;
+        _mouseButtonsDown[(int)e.Button] = TimingManager.Now;
+        OnMouseButtonDown?.Invoke(eventArgs);
+    }
+    public void MouseButtonUp(MouseEventArgs e)
+    {
+        var eventArgs = e with
+        {
+            TimeHeld = TimingManager.Now - MouseButtonsDown[(int)e.Button]
+        };
+        _mouseButtonsDown[(int)e.Button] = long.MinValue;
+        _mouseButtonsUp[(int)e.Button] = TimingManager.Now;
+        OnMouseButtonUp?.Invoke(eventArgs);
+        if (eventArgs.TimeHeld > 0)
+            OnMouseButtonPressed?.Invoke(eventArgs);
+    }
+    public void MouseMoved(MouseEventArgs e)
+    {
+        OnMouseMoved?.Invoke(e);
+    }
+}
+
+public readonly struct KeyEventArgs(Keycode key)
+{
+    public Keycode Key { get; init; } = key;
+    public long? TimeHeld { get; init; } = null;
+    public long? TimeSinceLastPressed { get; init; } = null;
+}
+
+public readonly struct MouseEventArgs(MouseButton? button, float x, float y)
+{
+    public MouseButton? Button { get; init; } = button;
+    public float X { get; init; } = x;
+    public float Y { get; init; } = y;
+    public long? TimeHeld { get; init; } = null;
+    public long? TimeSinceLastPressed { get; init; } = null;
+}
+
+public enum MouseButton
+{
+    Left=0,Right,Middle,ScrollUp,ScrollDown,Mouse3,Mouse4,Mouse5,Mouse6,Mouse7,Mouse8
+}
+
+public enum Keycode
+{
+    A=0,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,
+    Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+    Escape, Enter, Space, Backspace, Tab, Shift, Control, Alt,
+    Up, Down, Left, Right,
+    PageUp, PageDown, Home, End,
+    Insert, Delete,
+    CapsLock, NumLock, ScrollLock,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    PrintScreen, Pause,
+    Unknown
+}

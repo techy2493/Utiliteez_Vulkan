@@ -1,10 +1,12 @@
 using System.Numerics;
+using Castle.Core.Resource;
 using Utiliteez.Render;
+using Utiliteez.RenderEngine.Objects;
 using Utiliteez.RenderEngine.Structs;
 
 namespace Utiliteez.RenderEngine;
 
-public class AssetManager : IAssetManager
+public class AssetManager(IResourceManager ResourceManager, IPipelineManager PipelineManager) : IAssetManager
 {
     readonly ModelLoader _modelLoader = new();
     readonly Dictionary<string, Model> _models = new();
@@ -48,6 +50,19 @@ public class AssetManager : IAssetManager
         Materials.Clear();
         Fonts.Clear();
     }
-    
+
+    public void Finalize()
+    {
+        ResourceManager.CreateIndexAndVertexDataBuffers(Indices.ToArray(), Vertices.ToArray());
+        TextureAtlas.Generate(Materials.ToArray());
+        ResourceManager.UpdateTextureAtlas();
+        ResourceManager.CreateMaterialBuffer(Materials.Select(x => (ShaderMaterial)x).ToArray());
+        PipelineManager.WriteDescriptorsForMaterialBuffer();
+        
+        // Get rid of these because we've already written them to the GPU
+        Vertices.Clear();
+        Indices.Clear();
+        Materials.Clear();
+    }
     
 }

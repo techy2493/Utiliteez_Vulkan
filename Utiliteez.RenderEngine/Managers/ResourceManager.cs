@@ -13,13 +13,17 @@ namespace Utiliteez.RenderEngine;
 public unsafe record ResourceManager(
     Vk Vk,
     IDeviceManager DeviceManager,
-    ISwapChainManager SwapChainManager,
-    IAssetManager AssetManager
+    ISwapChainManager SwapChainManager
 ) : IResourceManager
 {
     public VulkanBuffer UniformBuffer { get; private set; }
     public VulkanBuffer MaterialBuffer { get; private set; }
+    public VulkanBuffer IndexBuffer { get; private set; }
+    public VulkanBuffer VertexBuffer { get; private set; }
+    public VulkanBuffer IndirectDrawCommandsBuffer { get; private set; }
+    public uint IndirectDrawCommandCount { get; private set; }
     public ulong MaterialBufferSize { get; private set; }
+    public ulong IndirectDrawCommandsBufferSize { get; private set; }
     public VulkanBuffer InstanceDataBuffer { get; private set; }
     public ulong InstanceDataBufferSize { get; private set; }
     const int MaxInstances = 1000; // max instances per model
@@ -45,9 +49,8 @@ public unsafe record ResourceManager(
             MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
     }
 
-    public void CreateMaterialBuffer()
+    public void CreateMaterialBuffer(ShaderMaterial[] materials)
     {
-        var materials = AssetManager.Materials.Select(x => (ShaderMaterial)x).ToArray();
         
         ulong entrySize = (ulong)Marshal.SizeOf<ShaderMaterial>();
         MaterialBufferSize = entrySize * (ulong)Math.Max(materials.Length, 1);
@@ -125,8 +128,45 @@ public unsafe record ResourceManager(
         Vk.UnmapMemory(DeviceManager.LogicalDevice, InstanceDataBuffer.Memory);
     }
 
+    
+    public void CreateIndexAndVertexDataBuffers(uint[] indices, Vertex[] vertices)
+    {
+        var vertexBufferSize = (ulong)(vertices.Length * Marshal.SizeOf<Vertex>());
+        var indexBufferSize = (ulong)(indices.Length * sizeof(uint));
+
+        VertexBuffer = VulkanBuffer.CreateBuffer(Vk, DeviceManager.LogicalDevice,
+            DeviceManager.PhysicalDevice, vertexBufferSize, BufferUsageFlags.VertexBufferBit,
+            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+        IndexBuffer = VulkanBuffer.CreateBuffer(Vk, DeviceManager.LogicalDevice,
+            DeviceManager.PhysicalDevice, indexBufferSize, BufferUsageFlags.IndexBufferBit,
+            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+
+        void* vertexData;
+        Vk.MapMemory(DeviceManager.LogicalDevice, VertexBuffer.Memory, 0, vertexBufferSize, 0, &vertexData);
+
+        IntPtr vertexDataPtr = (IntPtr)vertexData;
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            Marshal.StructureToPtr(vertices[i], vertexDataPtr + i * Marshal.SizeOf<Vertex>(), false);
+        }
+
+        Vk.UnmapMemory(DeviceManager.LogicalDevice, VertexBuffer.Memory);
+
+        int[] intIndices = Array.ConvertAll(indices, x => unchecked((int)x));
+
+        void* indexData;
+        Vk.MapMemory(DeviceManager.LogicalDevice, IndexBuffer.Memory, 0, indexBufferSize, 0, &indexData);
+        Marshal.Copy(intIndices, 0, (IntPtr)indexData, indices.Length);
+        Vk.UnmapMemory(DeviceManager.LogicalDevice, IndexBuffer.Memory);
+    }
+
     public void UpdateInstanceDataBuffer(InstanceData[] instanceData)
     {
+        if (instanceData.Length > MaxInstances)
+        {
+            throw new ArgumentException($"Instance data exceeds maximum allowed instances ({MaxInstances}).");
+        }
+        
         void* mappedInst;
         Vk.MapMemory(
             DeviceManager.LogicalDevice,
@@ -151,15 +191,47 @@ public unsafe record ResourceManager(
         Vk.UnmapMemory(DeviceManager.LogicalDevice, InstanceDataBuffer.Memory);
     }
 
+    public void CreateAndUpdateIndirectDrawCommandBuffer(DrawIndexedIndirectCommand[] drawCommands)
+    {
+        IndirectDrawCommandCount = (uint) drawCommands.Length;
+        IndirectDrawCommandsBufferSize = (ulong)(drawCommands.Length * Marshal.SizeOf<DrawIndexedIndirectCommand>());
+        IndirectDrawCommandsBuffer = VulkanBuffer.CreateBuffer(Vk, DeviceManager.LogicalDevice, DeviceManager.PhysicalDevice,
+            IndirectDrawCommandsBufferSize,
+            BufferUsageFlags.IndirectBufferBit | BufferUsageFlags.TransferDstBit,
+            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+
+        void* mapped;
+        Vk.MapMemory(DeviceManager.LogicalDevice,
+            IndirectDrawCommandsBuffer.Memory,
+            0,
+            IndirectDrawCommandsBufferSize,
+            0,
+            &mapped);
+
+        IntPtr basePtr = (IntPtr)mapped;
+        int structSize = Marshal.SizeOf<DrawIndexedIndirectCommand>();
+        for (int i = 0; i < drawCommands.Length; i++)
+        {
+            // copy each struct into the mapped region at the correct byte offset
+            Marshal.StructureToPtr(
+                drawCommands[i],
+                basePtr + i * structSize,
+                false
+            );
+        }
+
+        Vk.UnmapMemory(DeviceManager.LogicalDevice, IndirectDrawCommandsBuffer.Memory);
+    }
+
     public void Initialize()
     {
         CreateUniformBuffer();
-        CreateMaterialBuffer();
+        CreateMaterialBuffer([]);
         CreateInstanceDataBuffer();
         CreateTextureAtlas();
     }
 
-    public void UpdateUniformBuffer()
+    public void UpdateCameraUniformBuffer()
     {
         CameraUniformBufferObject ubo = new CameraUniformBufferObject();
 
@@ -306,8 +378,6 @@ public unsafe record ResourceManager(
 
     public unsafe void UpdateTextureAtlas()
     {
-        // 0) Update Atlas
-        TextureAtlas.Generate(AssetManager.Materials.ToArray());
         
         // 1) Pull the CPU‐side atlas pixels
         var cpuAtlas = TextureAtlas.Atlas;

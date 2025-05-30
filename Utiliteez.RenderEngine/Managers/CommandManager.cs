@@ -25,12 +25,7 @@ public unsafe record CommandManager (
         _isInitialized = true;
     }
     
-    public void RenderFrame(
-        VulkanBuffer vertexBuffer,
-        VulkanBuffer indexBuffer,
-        VulkanBuffer IndirectCommandBuffer,
-        VulkanBuffer InstanceDataBuffer,
-        uint drawCount)
+    public void RenderFrame()
     {
         _frameIndex = (_frameIndex + 1) % SwapChainManager.ImageCount;
         
@@ -43,7 +38,7 @@ public unsafe record CommandManager (
             CommandBufferResetFlags.None
         );
         
-        ResourceManager.UpdateUniformBuffer();
+        ResourceManager.UpdateCameraUniformBuffer();
 
         // Acquire the next image from the swapchain
         uint imageIndex;
@@ -128,7 +123,7 @@ public unsafe record CommandManager (
     
         }
         
-        fixed (Buffer*    pBuffers = &vertexBuffer.Buffer)
+        fixed (Buffer*    pBuffers = &ResourceManager.VertexBuffer.Buffer)
         fixed (ulong*     pOffsets = stackalloc ulong[1] { 0 })
         {
             Vk.CmdBindVertexBuffers(
@@ -140,9 +135,9 @@ public unsafe record CommandManager (
             );
         }
         
-        Vk.CmdBindIndexBuffer(DeviceManager.CommandBuffers[_frameIndex], indexBuffer.Buffer, 0, IndexType.Uint32);
+        Vk.CmdBindIndexBuffer(DeviceManager.CommandBuffers[_frameIndex], ResourceManager.IndexBuffer.Buffer, 0, IndexType.Uint32);
         
-        Vk.CmdDrawIndexedIndirect(DeviceManager.CommandBuffers[_frameIndex], IndirectCommandBuffer.Buffer, 0, drawCount, (uint)Marshal.SizeOf<DrawIndexedIndirectCommand>());
+        Vk.CmdDrawIndexedIndirect(DeviceManager.CommandBuffers[_frameIndex], ResourceManager.IndirectDrawCommandsBuffer.Buffer, 0, ResourceManager.IndirectDrawCommandCount, (uint)Marshal.SizeOf<DrawIndexedIndirectCommand>());
         
         Vk.CmdEndRendering(DeviceManager.CommandBuffers[_frameIndex]);
 

@@ -5,12 +5,7 @@ namespace Utiliteez.RenderEngine;
 
 public interface ICommandManager
 {
-    unsafe void RenderFrame(
-        VulkanBuffer vertexBuffer,
-        VulkanBuffer indexBuffer,
-        VulkanBuffer IndirectCommandBuffer,
-        VulkanBuffer InstanceDataBuffer,
-        uint drawCount);
+    unsafe void RenderFrame();
 
     Vk Vk { get; init; }
     IDeviceManager DeviceManager { get; init; }
