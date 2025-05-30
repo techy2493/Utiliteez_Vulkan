@@ -34,78 +34,49 @@ public unsafe record RenderEngine(
         SwapChainManager.Initialize();
         ResourceManager.Initialize();
         PipelineManager.Initialize();
-
+        CommandManager.Initialize();
+        
         // ========== TEMPT BEGIN ==========
 
-        // Register Assets
+        
+        // Load Scene
         AssetManager.RegisterModel("ground", "Models/Ground.obj");
         AssetManager.RegisterModel("powerpole", "Models/PowerPole2.obj");
 
         AssetManager.Finalize();
+
+        // Register Input Events
+        InputManager.OnKeyPressed += e => Console.WriteLine($"Key Pressed: {e.Key}, Time Held: {e.TimeHeld}, Time Since Last Pressed: {e.TimeSinceLastPressed}");
+        InputManager.OnKeyDown += e =>
+        {
+            if (e.Key == Keycode.Escape) WindowManager.Close();
+        }; 
         
-
-        var pole = AssetManager.Models["powerpole"];
-        var ground = AssetManager.Models["ground"];
-
+        // Main Loop Here???
+        
+        // Update Scene
         var drawOrders = new []
         {
             new DrawOrder
             {
-                model = ground,
+                model = "ground",
                 position = [new(0, 0, 0), new(1, 0, 0), new(2, 0, 0)],
             },
             new DrawOrder
             {
-                model = pole,
+                model = "powerpole",
                 position = [new(0, 0, 0),new(1, 0, 0),new(0, 0, 1)],
             },
             new DrawOrder
             {
-                model = pole,
+                model = "powerpole",
                 position = [new(0, 2, 0),new(1, 2, 0),new(0, 2, 1)],
             },
         };
         
-
-
-        // 3) Load Buffers for Drawing
-        var drawCommandsList = new List<DrawIndexedIndirectCommand>();
-        var instanceCount = 0;
-        for (int i = 0; i < drawOrders.Length; i++)
-        {
-            drawCommandsList.Add(new DrawIndexedIndirectCommand
-            {
-                IndexCount = drawOrders[i].model.IndexCount,
-                InstanceCount = (uint) drawOrders[i].position.Count ,
-                FirstIndex = drawOrders[i].model.IndexOffset,
-                VertexOffset = drawOrders[i].model.VertexOffset,
-                FirstInstance = (uint) instanceCount
-            });
-            
-            instanceCount += drawOrders[i].position.Count;
-        }
-
-        var drawCommands = drawCommandsList.ToArray();
-        ResourceManager.CreateAndUpdateIndirectDrawCommandBuffer(drawCommands);
-
-
-        var instanceData = drawOrders.SelectMany(order => order.position, (order, position) =>
-        {
-            return new InstanceData
-            {
-                Model = Matrix4x4.CreateTranslation(position),
-                MaterialIndex = order.model.MaterialIndex
-            };
-        }).ToArray();
-        ResourceManager.UpdateInstanceDataBuffer(instanceData);
-
+        CommandManager.CreateDrawcommand(drawOrders);
         
-        InputManager.OnKeyPressed += e => Console.WriteLine($"Key Pressed: {e.Key}, Time Held: {e.TimeHeld}, Time Since Last Pressed: {e.TimeSinceLastPressed}");
-        CommandManager.Initialize();
-        Console.WriteLine($"[DEBUG] DrawIndexedIndirectCommand size = {Marshal.SizeOf<DrawIndexedIndirectCommand>()} bytes");
-        Console.WriteLine($"[DEBUG] InstanceData size = {Marshal.SizeOf<InstanceData>()} bytes");
-        
-        
+        // Call RenderFrame instead of binding  
         WindowManager.Window.Render += (delta) =>
         {
             CommandManager.RenderFrame();

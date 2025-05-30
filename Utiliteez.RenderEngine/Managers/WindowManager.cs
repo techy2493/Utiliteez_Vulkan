@@ -66,8 +66,9 @@ public class WindowManager(IInputManager InputManager) : IWindowManager
         Window.Run();
     }
 
-    public void Close()
+    public bool Close()
     {
         Window.Close();
+        return Window.IsClosing;
     }
 }

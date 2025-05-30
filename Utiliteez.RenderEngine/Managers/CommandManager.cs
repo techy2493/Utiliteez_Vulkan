@@ -1,7 +1,9 @@
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Utiliteez.RenderEngine.Interfaces;
+using Utiliteez.RenderEngine.Structs;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
@@ -12,7 +14,8 @@ public unsafe record CommandManager (
     IDeviceManager DeviceManager,
     ISwapChainManager SwapChainManager,
     IResourceManager ResourceManager,
-    IPipelineManager PipelineManager
+    IPipelineManager PipelineManager,
+    IAssetManager AssetManager
     ) : ICommandManager
 {
     private int _frameIndex = 0;
@@ -197,5 +200,46 @@ public unsafe record CommandManager (
             }; 
             SwapChainManager.KhrSwapChain.QueuePresent(DeviceManager.PresentQueue, in presentInfo);
         }
+    }
+
+    public void CreateDrawcommand(DrawOrder[] drawOrders)
+    {
+        var drawCommandsList = new List<DrawIndexedIndirectCommand>();
+        var instanceCount = 0;
+        for (int i = 0; i < drawOrders.Length; i++)
+        {
+            if (!AssetManager.Models.TryGetValue(drawOrders[i].model, out var model))
+            {
+                throw new KeyNotFoundException($"Model '{drawOrders[i].model}' not found in AssetManager.");
+            }
+            drawCommandsList.Add(new DrawIndexedIndirectCommand
+            {
+                IndexCount = model.IndexCount,
+                InstanceCount = (uint) drawOrders[i].position.Count ,
+                FirstIndex = model.IndexOffset,
+                VertexOffset = model.VertexOffset,
+                FirstInstance = (uint) instanceCount
+            });
+            
+            instanceCount += drawOrders[i].position.Count;
+        }
+
+        var drawCommands = drawCommandsList.ToArray();
+        ResourceManager.CreateAndUpdateIndirectDrawCommandBuffer(drawCommands);
+
+
+        var instanceData = drawOrders.SelectMany(order => order.position, (order, position) =>
+        {
+            if (!AssetManager.Models.TryGetValue(order.model, out var model))
+            {
+                throw new KeyNotFoundException($"Model '{order.model}' not found in AssetManager.");
+            }
+            return new InstanceData
+            {
+                Model = Matrix4x4.CreateTranslation(position),
+                MaterialIndex = model.MaterialIndex
+            };
+        }).ToArray();
+        ResourceManager.UpdateInstanceDataBuffer(instanceData);
     }
 }
