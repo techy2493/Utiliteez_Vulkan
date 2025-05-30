@@ -5,5 +5,5 @@ namespace Utiliteez.RenderEngine.Structs;
 public struct DrawOrder
 {
     public Model model;
-    public Vector3 position;
+    public List<Vector3> position;
 }

@@ -62,18 +62,18 @@ public unsafe record RenderEngine(
         {
             new DrawOrder
             {
+                model = ground,
+                position = [new(0, 0, 0), new(1, 0, 0), new(2, 0, 0)],
+            },
+            new DrawOrder
+            {
                 model = pole,
-                position = new Vector3(1,0,0),
+                position = [new(0, 0, 0),new(1, 0, 0),new(0, 0, 1)],
             },
             new DrawOrder
             {
-                model = ground,
-                position = new Vector3(0,0,0),
-            },
-            new DrawOrder
-            {
-                model = ground,
-                position = new Vector3(3,0,0),
+                model = pole,
+                position = [new(0, 2, 0),new(1, 2, 0),new(0, 2, 1)],
             },
         };
         
@@ -117,17 +117,27 @@ public unsafe record RenderEngine(
         // 3) Load Buffers for Drawing
 
         #region DrawCommands &  Buffer
-        
-        var drawCommands = drawOrders.Select((order, i) => new DrawIndexedIndirectCommand
+
+
+
+        var drawCommandsList = new List<DrawIndexedIndirectCommand>();
+        var instanceCount = 0;
+        for (int i = 0; i < drawOrders.Length; i++)
         {
-            IndexCount = order.model.IndexCount,
-            InstanceCount = 1,
-            FirstIndex = order.model.IndexOffset,
-            VertexOffset = order.model.VertexOffset,
-            FirstInstance = (uint) i
-        }).ToArray();
-        
-        
+            drawCommandsList.Add(new DrawIndexedIndirectCommand
+            {
+                IndexCount = drawOrders[i].model.IndexCount,
+                InstanceCount = (uint) drawOrders[i].position.Count ,
+                FirstIndex = drawOrders[i].model.IndexOffset,
+                VertexOffset = drawOrders[i].model.VertexOffset,
+                FirstInstance = (uint) instanceCount
+            });
+            
+            instanceCount += drawOrders[i].position.Count;
+        }
+
+        var drawCommands = drawCommandsList.ToArray();
+
         var indirectBufferSize = (ulong)(drawCommands.Length * Marshal.SizeOf<DrawIndexedIndirectCommand>());
         var indirectBuffer = VulkanBuffer.CreateBuffer(Vk, DeviceManager.LogicalDevice, DeviceManager.PhysicalDevice,
             indirectBufferSize,
@@ -162,19 +172,21 @@ public unsafe record RenderEngine(
 
         #region InstanceData & Buffer
 
-        var instanceData = drawOrders.Select(x => new InstanceData
+        var instanceData = drawOrders.SelectMany(order => order.position, (order, position) =>
         {
-            Model = Matrix4x4.CreateTranslation(x.position),
-            MaterialIndex = x.model.MaterialIndex
+            return new InstanceData
+            {
+                Model = Matrix4x4.CreateTranslation(position),
+                MaterialIndex = order.model.MaterialIndex
+            };
         }).ToArray();
-        
-
         ResourceManager.UpdateInstanceDataBuffer(instanceData);
         
         #endregion
 
         CommandManager.Initialize();
         Console.WriteLine($"[DEBUG] DrawIndexedIndirectCommand size = {Marshal.SizeOf<DrawIndexedIndirectCommand>()} bytes");
+        Console.WriteLine($"[DEBUG] InstanceData size = {Marshal.SizeOf<InstanceData>()} bytes");
         WindowManager.Window.Render += (delta) =>
         {
             CommandManager.RenderFrame(vertexBuffer, indexBuffer, indirectBuffer, ResourceManager.InstanceDataBuffer, (uint) drawCommands.Length);

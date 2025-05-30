@@ -11,7 +11,9 @@ layout(set = 0, binding = 0) uniform Camera {
 struct InstanceData {
     mat4 model;
     uint materialIndex;
-    vec3 _pad0;
+    uint _pad0;
+    uint _pad1;
+    uint _pad2;
 };
 
 // ——— set 0, binding 0: SSBO of InstanceData[] ————————————
@@ -27,11 +29,12 @@ layout(location = 2) in vec2 inUV;
 layout(location = 0) flat out uint fragMatIndex;
 layout(location = 1) out vec3  outNormal;
 layout(location = 2) out vec2  outUV;
+//layout(location = 3) out vec3 color;
 
 void main() {
     // Compute the index into your SSBO:
     //   firstInstance comes from your DrawIndexedIndirectCommand
-    uint idx = gl_BaseInstance + gl_InstanceIndex;
+    uint idx = gl_InstanceIndex;
 
     // Pull per-instance data:
     mat4 model        = instances[idx].model;
@@ -47,5 +50,7 @@ void main() {
     // Pass the (unmodified) UV — 
     // if you need atlas adjustments you can apply them here:
     outUV             = inUV;
+    
+//    color = vec3(gl_InstanceIndex, 0, 0); // Default color, can be modified later
 }
 

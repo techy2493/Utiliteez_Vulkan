@@ -53,7 +53,7 @@ void main() {
 
     // 7) Output with original alpha
     outColor = vec4(lit, texC.a);
-
+//    outColor = vec4(color, 1.0);
     //–––– Uncomment to debug winding: green=front, red=back ––––
     //    outColor = gl_FrontFacing
     //        ? vec4(0,1,0,1)
