@@ -8,4 +8,5 @@ public interface IWindowManager
     void CreateWindow();
     void Run();
     bool Close();
+    bool ShouldClose { get; }
 }

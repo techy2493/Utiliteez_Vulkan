@@ -5,11 +5,12 @@ using Silk.NET.Windowing;
 
 namespace Utiliteez.RenderEngine;
 // Todo: Move this shit?? IWindow in common? Window in Game? Or just expose an event sink?
-public class WindowManager(IInputManager InputManager) : IWindowManager
+public class WindowManager() : IWindowManager
 {
     public readonly Vector2D<int> WindowSize = new Vector2D<int>(800, 600);
     public const string Title = "Utiliteez";
 
+    public bool ShouldClose { get; private set; } = false;
     public IWindow Window { get; private set; }
     
     public void CreateWindow()
@@ -39,24 +40,6 @@ public class WindowManager(IInputManager InputManager) : IWindowManager
     private void OnLoad()
     {
         Console.WriteLine($"Window Loaded");
-        var input = Window.CreateInput();
-        foreach (var keyboard in input.Keyboards)
-        {
-            // TODO: Handle key codes properly, this is a workaround. Try a map of some sort?
-            keyboard.KeyDown += (_, key, _) => InputManager.KeyDown(new KeyEventArgs(Enum.Parse<Keycode>(key.ToString())));
-            keyboard.KeyUp += (_, key, _) => InputManager.KeyUp(new KeyEventArgs(Enum.Parse<Keycode>(key.ToString())));
-        }
-
-        foreach (var mouse in input.Mice)
-        {
-            // TODO: Handle key codes properly, this is a workaround. Try a map of some sort?
-            mouse.MouseDown += (m, button) => InputManager.MouseButtonDown(new MouseEventArgs(
-                Enum.Parse<MouseButton>(button.ToString()),
-                m.Position.X, m.Position.Y));
-            mouse.MouseUp += (m, button) => InputManager.MouseButtonUp(new MouseEventArgs(
-                Enum.Parse<MouseButton>(button.ToString()),
-                m.Position.X, m.Position.Y));
-        }
     }
     private void OnUpdate(double deltaTime) {}
     private void OnRender(double deltaTime) {}
@@ -68,6 +51,7 @@ public class WindowManager(IInputManager InputManager) : IWindowManager
 
     public bool Close()
     {
+        ShouldClose = true;
         Window.Close();
         return Window.IsClosing;
     }

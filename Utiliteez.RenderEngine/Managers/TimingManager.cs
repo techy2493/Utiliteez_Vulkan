@@ -5,10 +5,10 @@ namespace Utiliteez.RenderEngine;
 public class TimingManager : ITimingManager
 {
     Stopwatch _stopwatch = Stopwatch.StartNew();
-    public long Now => GetNow();
+    public double Now => GetNow();
 
-    private long GetNow()
+    private double GetNow()
     {
-        return _stopwatch.ElapsedTicks;
+        return _stopwatch.ElapsedMilliseconds / 1000d; // Convert milliseconds to microseconds
     }
 }

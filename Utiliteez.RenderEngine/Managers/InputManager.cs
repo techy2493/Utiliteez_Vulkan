@@ -1,8 +1,10 @@
+using System.Numerics;
 using System.Runtime.InteropServices.JavaScript;
+using Silk.NET.Input;
 
 namespace Utiliteez.RenderEngine;
 
-public class InputManager(ITimingManager TimingManager) : IInputManager
+public class InputManager(ITimingManager TimingManager, IWindowManager WindowManager) : IInputManager
 {
     public event Action<KeyEventArgs>? OnKeyPressed;
     public event Action<KeyEventArgs>? OnKeyDown;
@@ -12,16 +14,47 @@ public class InputManager(ITimingManager TimingManager) : IInputManager
     public event Action<MouseEventArgs>? OnMouseButtonUp;
     public event Action<MouseEventArgs>? OnMouseMoved;
 
-    private readonly long[] _keysDown        = new long[Enum.GetValues<Keycode>().Length];
-    private readonly long[] _keysUp          = new long[Enum.GetValues<Keycode>().Length];
-    private readonly long[] _mouseButtonsDown       = new long[Enum.GetValues<MouseButton>().Length];
-    private readonly long[] _mouseButtonsUp         = new long[Enum.GetValues<MouseButton>().Length];
+    private readonly double[] _keysDown        = new double[Enum.GetValues<Keycode>().Length];
+    private readonly double[] _keysUp          = new double[Enum.GetValues<Keycode>().Length];
+    private readonly double[] _mouseButtonsDown       = new double[Enum.GetValues<MouseButton>().Length];
+    private readonly double[] _mouseButtonsUp         = new double[Enum.GetValues<MouseButton>().Length];
 
     // public read-only views
-    public IReadOnlyList<long> KeysDown         => _keysDown;
-    public IReadOnlyList<long> KeysUp           => _keysUp;
-    public IReadOnlyList<long> MouseButtonsDown => _mouseButtonsDown;
-    public IReadOnlyList<long> MouseButtonsUp   => _mouseButtonsUp;
+    public IReadOnlyList<double> KeysDown         => _keysDown;
+    public IReadOnlyList<double> KeysUp           => _keysUp;
+    public IReadOnlyList<double> MouseButtonsDown => _mouseButtonsDown;
+    public IReadOnlyList<double> MouseButtonsUp   => _mouseButtonsUp;
+
+    public ICameraManager CameraManager { get; private set; }
+    
+    
+    public void BindCamera(ICameraManager cameraManager)
+    {
+        CameraManager = cameraManager;
+    }
+    
+    
+    public void Initialize()
+    {
+        var input = WindowManager.Window.CreateInput();
+        foreach (var keyboard in input.Keyboards)
+        {
+            // TODO: Handle key codes properly, this is a workaround. Try a map of some sort?
+            keyboard.KeyDown += (_, key, _) => KeyDown(new KeyEventArgs(Enum.Parse<Keycode>(key.ToString())));
+            keyboard.KeyUp += (_, key, _) => KeyUp(new KeyEventArgs(Enum.Parse<Keycode>(key.ToString())));
+        }
+
+        foreach (var mouse in input.Mice)
+        {
+            // TODO: Handle key codes properly, this is a workaround. Try a map of some sort?
+            mouse.MouseDown += (m, button) => MouseButtonDown(new MouseEventArgs(
+                Enum.Parse<MouseButton>(button.ToString()),
+                m.Position.X, m.Position.Y));
+            mouse.MouseUp += (m, button) => MouseButtonUp(new MouseEventArgs(
+                Enum.Parse<MouseButton>(button.ToString()),
+                m.Position.X, m.Position.Y));
+        }
+    }
     
     public void KeyDown(KeyEventArgs e)
     {
@@ -50,7 +83,8 @@ public class InputManager(ITimingManager TimingManager) : IInputManager
     {
         var eventArgs = e with
         {
-            TimeSinceLastPressed = TimingManager.Now - MouseButtonsUp[(int)e.Button]
+            TimeSinceLastPressed = TimingManager.Now - MouseButtonsUp[(int)e.Button],
+            WorldPosition = CameraManager.ScreenToGround(e.X, e.Y) ?? Vector3.Zero
         };
         _mouseButtonsUp[(int)e.Button] = long.MinValue;
         _mouseButtonsDown[(int)e.Button] = TimingManager.Now;
@@ -60,7 +94,8 @@ public class InputManager(ITimingManager TimingManager) : IInputManager
     {
         var eventArgs = e with
         {
-            TimeHeld = TimingManager.Now - MouseButtonsDown[(int)e.Button]
+            TimeHeld = TimingManager.Now - MouseButtonsDown[(int)e.Button],
+            WorldPosition = CameraManager.ScreenToGround(e.X, e.Y) ?? Vector3.Zero
         };
         _mouseButtonsDown[(int)e.Button] = long.MinValue;
         _mouseButtonsUp[(int)e.Button] = TimingManager.Now;
@@ -77,17 +112,18 @@ public class InputManager(ITimingManager TimingManager) : IInputManager
 public readonly struct KeyEventArgs(Keycode key)
 {
     public Keycode Key { get; init; } = key;
-    public long? TimeHeld { get; init; } = null;
-    public long? TimeSinceLastPressed { get; init; } = null;
+    public double? TimeHeld { get; init; } = null;
+    public double? TimeSinceLastPressed { get; init; } = null;
 }
 
-public readonly struct MouseEventArgs(MouseButton? button, float x, float y)
+public struct MouseEventArgs(MouseButton? button, float x, float y)
 {
     public MouseButton? Button { get; init; } = button;
     public float X { get; init; } = x;
     public float Y { get; init; } = y;
-    public long? TimeHeld { get; init; } = null;
-    public long? TimeSinceLastPressed { get; init; } = null;
+    public double? TimeHeld { get; init; } = null;
+    public double? TimeSinceLastPressed { get; init; } = null;
+    public Vector3 WorldPosition;
 }
 
 public enum MouseButton

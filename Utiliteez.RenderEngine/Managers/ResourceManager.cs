@@ -13,7 +13,8 @@ namespace Utiliteez.RenderEngine;
 public unsafe record ResourceManager(
     Vk Vk,
     IDeviceManager DeviceManager,
-    ISwapChainManager SwapChainManager
+    ISwapChainManager SwapChainManager,
+    ICameraManager CameraManager
 ) : IResourceManager
 {
     public VulkanBuffer UniformBuffer { get; private set; }
@@ -40,7 +41,7 @@ public unsafe record ResourceManager(
     private DescriptorSet _atlasDescriptorSet;
     public void SetAtlasDescriptorSet(DescriptorSet ds) => _atlasDescriptorSet = ds;
 
-    internal void CreateUniformBuffer()
+    internal void CreateCameraUniformBuffer()
     {
         ulong bufferSize = (ulong)sizeof(CameraUniformBufferObject);
 
@@ -225,7 +226,7 @@ public unsafe record ResourceManager(
 
     public void Initialize()
     {
-        CreateUniformBuffer();
+        CreateCameraUniformBuffer();
         CreateMaterialBuffer([]);
         CreateInstanceDataBuffer();
         CreateTextureAtlas();
@@ -234,44 +235,44 @@ public unsafe record ResourceManager(
     public void UpdateCameraUniformBuffer()
     {
         CameraUniformBufferObject ubo = new CameraUniformBufferObject();
-
-        // 1) Set up an orthographic projection
-        float viewWidth = 6.0f; // world-space width you want visible
-        float viewHeight = viewWidth *
-                           (SwapChainManager.SwapChainExtent.Height / (float)SwapChainManager.SwapChainExtent.Width);
-        float nearZ = -50.0f;
-        float farZ = 50.0f;
-        Matrix4x4 proj = Matrix4x4.CreateOrthographicOffCenter(
-            -viewWidth * 0.5f, +viewWidth * 0.5f,
-            -viewHeight * 0.5f, +viewHeight * 0.5f,
-            nearZ, farZ
-        );
-
-        // --- isometric angles --- //
-// 45° around Y (π/4) + 180° = 225° (5π/4)
-        float yaw = MathF.PI * 5f / 4f;
-// elevation = arctan(1/√2) ≈ 35.264°
-        float elevation = MathF.Atan(1f / MathF.Sqrt(2f));
-        float distance = 2f;
-
-// build a unit-direction from spherical coords
-        Vector3 dir = new Vector3(
-            MathF.Cos(elevation) * MathF.Cos(yaw),
-            MathF.Sin(elevation),
-            MathF.Cos(elevation) * MathF.Sin(yaw)
-        );
-
-// instead of target - dir * d, *add* to go to the opposite side:
-        Vector3 target = new Vector3(0, 1.5f, 0); // adjust to pole’s center
-        Vector3 eye = target + dir * distance;
-        Vector3 up = new Vector3(0, -1, 0);
-
-// now your look-at:
-        var view = Matrix4x4.CreateLookAt(eye, target, up);
+//
+//         // 1) Set up an orthographic projection
+//         float viewWidth = 6.0f; // world-space width you want visible
+//         float viewHeight = viewWidth *
+//                            (SwapChainManager.SwapChainExtent.Height / (float)SwapChainManager.SwapChainExtent.Width);
+//         float nearZ = -50.0f;
+//         float farZ = 50.0f;
+//         Matrix4x4 proj = Matrix4x4.CreateOrthographicOffCenter(
+//             -viewWidth * 0.5f, +viewWidth * 0.5f,
+//             -viewHeight * 0.5f, +viewHeight * 0.5f,
+//             nearZ, farZ
+//         );
+//
+//         // --- isometric angles --- //
+// // 45° around Y (π/4) + 180° = 225° (5π/4)
+//         float yaw = MathF.PI * 5f / 4f;
+// // elevation = arctan(1/√2) ≈ 35.264°
+//         float elevation = MathF.Atan(1f / MathF.Sqrt(2f));
+//         float distance = 2f;
+//
+// // build a unit-direction from spherical coords
+//         Vector3 dir = new Vector3(
+//             MathF.Cos(elevation) * MathF.Cos(yaw),
+//             MathF.Sin(elevation),
+//             MathF.Cos(elevation) * MathF.Sin(yaw)
+//         );
+//
+// // instead of target - dir * d, *add* to go to the opposite side:
+//         Vector3 target = new Vector3(0, 1.5f, 0); // adjust to pole’s center
+//         Vector3 eye = target + dir * distance;
+//         Vector3 up = new Vector3(0, -1, 0);
+//
+// // now your look-at:
+//         var view = Matrix4x4.CreateLookAt(eye, target, up);
 
         // 4) Upload your new matrices into your UBO
-        ubo.view = view;
-        ubo.proj = proj;
+        ubo.view = CameraManager.View;
+        ubo.proj = CameraManager.Proj;
 
         void* data;
         Vk.MapMemory(DeviceManager.LogicalDevice, UniformBuffer.Memory, 0, (ulong)sizeof(CameraUniformBufferObject), 0,

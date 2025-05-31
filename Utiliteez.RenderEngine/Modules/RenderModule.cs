@@ -14,10 +14,6 @@ public class RenderModule: Module
             .As<ITimingManager>()
             .SingleInstance();
         
-        builder.RegisterType<InputManager>()
-            .As<IInputManager>()
-            .SingleInstance();
-        
         builder.RegisterType<WindowManager>().As<IWindowManager>().SingleInstance();
         builder.RegisterInstance(Vk.GetApi()).As<Vk>().SingleInstance();
         
@@ -40,6 +36,15 @@ public class RenderModule: Module
             .RegisterType<SwapChainManager>()
             .As<ISwapChainManager>()
             .SingleInstance();
+        
+        builder.RegisterType<CameraManager>()
+            .As<ICameraManager>()
+            .SingleInstance();
+        
+        builder.RegisterType<InputManager>()
+            .As<IInputManager>()
+            .SingleInstance();
+
         
         builder
             .RegisterType<AssetManager>()

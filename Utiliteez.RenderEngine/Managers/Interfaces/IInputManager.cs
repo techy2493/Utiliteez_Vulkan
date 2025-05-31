@@ -9,13 +9,15 @@ public interface IInputManager
     event Action<MouseEventArgs>? OnMouseButtonDown;
     event Action<MouseEventArgs>? OnMouseButtonUp;
     event Action<MouseEventArgs>? OnMouseMoved;
-    IReadOnlyList<long> KeysDown { get; }
-    IReadOnlyList<long> KeysUp { get; }
-    IReadOnlyList<long> MouseButtonsDown { get; }
-    IReadOnlyList<long> MouseButtonsUp { get; }
+    IReadOnlyList<double> KeysDown { get; }
+    IReadOnlyList<double> KeysUp { get; }
+    IReadOnlyList<double> MouseButtonsDown { get; }
+    IReadOnlyList<double> MouseButtonsUp { get; }
     void KeyDown(KeyEventArgs e);
     void KeyUp(KeyEventArgs e);
     void MouseButtonDown(MouseEventArgs e);
     void MouseButtonUp(MouseEventArgs e);
     void MouseMoved(MouseEventArgs e);
+    public void Initialize();
+    public void BindCamera(ICameraManager cameraManager);
 }

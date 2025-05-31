@@ -81,9 +81,4 @@ public interface IResourceManager
         uint width,
         uint height);
 
-    bool Equals(ResourceManager? other);
-    bool Equals(object? other);
-    int GetHashCode();
-    void Deconstruct(out Vk Vk, out IDeviceManager DeviceManager, out ISwapChainManager SwapChainManager);
-    string ToString();
 }
